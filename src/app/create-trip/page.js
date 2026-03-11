@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/axios';
-import { Plane, Calendar, Wallet, Heart, Sparkles, Plus, X } from 'lucide-react';
+import { Plane, Calendar, Wallet, Heart, Sparkles, Plus, X, LogIn } from 'lucide-react';
 
 const PREDEFINED_INTERESTS = [
   "Historical Sites", "Local Cuisine", "Art & Museums", 
@@ -21,7 +21,10 @@ export default function CreateTrip() {
   const [customInterest, setCustomInterest] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const router = useRouter();
+
+  const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('token');
 
   const toggleInterest = (interest) => {
     if (formData.interests.includes(interest)) {
@@ -45,6 +48,16 @@ export default function CreateTrip() {
       setError('Please select at least one interest to help AI plan better.');
       return;
     }
+
+    const token = localStorage.getItem('token');
+    const hasUsedFreeTrial = localStorage.getItem('hasUsedFreeTrial');
+
+    // Not logged in and already used the free trial — prompt to sign up
+    if (!token && hasUsedFreeTrial === 'true') {
+      setShowAuthPrompt(true);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -54,10 +67,19 @@ export default function CreateTrip() {
         days: Number(formData.days),
       };
 
-      const res = await api.post('/trips/generate', payload);
-      router.push(`/trip/${res.data._id}`);
+      if (token) {
+        // Authenticated user — use the normal flow (saves to DB)
+        const res = await api.post('/trips/generate', payload);
+        router.push(`/trip/${res.data._id}`);
+      } else {
+        // Guest user — use the guest endpoint (no DB save)
+        const res = await api.post('/trips/generate-guest', payload);
+        localStorage.setItem('hasUsedFreeTrial', 'true');
+        localStorage.setItem('guestTrip', JSON.stringify(res.data));
+        router.push('/trip/guest');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to generate trip. Ensure you are logged in.');
+      setError(err.response?.data?.message || 'Failed to generate trip.');
       setLoading(false);
     }
   };
@@ -71,6 +93,37 @@ export default function CreateTrip() {
         </div>
         <h2 className="mt-8 text-2xl font-bold text-slate-800">AI is crafting your perfect itinerary...</h2>
         <p className="mt-2 text-slate-500">This might take 10-20 seconds as we analyze the best spots in {formData.destination}.</p>
+      </div>
+    );
+  }
+
+  // Auth prompt modal for users who've used their free trial
+  if (showAuthPrompt) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-4">
+        <div className="glass rounded-3xl p-10 sm:p-14 max-w-lg text-center shadow-2xl border border-slate-100">
+          <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <LogIn className="w-10 h-10 text-indigo-500" />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-3">You've Used Your Free Trip!</h2>
+          <p className="text-slate-500 mb-8 leading-relaxed">
+            You've already generated a free itinerary as a guest. Sign up for a free account to plan unlimited trips, save your itineraries, and unlock editing features.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => router.push('/register')}
+              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-full hover:shadow-lg hover:shadow-indigo-200 hover:scale-105 transition-all text-lg"
+            >
+              Sign Up Free
+            </button>
+            <button
+              onClick={() => router.push('/login')}
+              className="px-8 py-4 bg-white text-slate-700 font-bold rounded-full hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all text-lg"
+            >
+              Log In
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

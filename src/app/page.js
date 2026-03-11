@@ -41,13 +41,20 @@ export default function Home() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
           <Link
-            href={isLoggedIn ? "/dashboard" : "/create-trip"}
+            href="/create-trip"
             className="w-full sm:w-auto px-8 py-4 bg-indigo-600 text-white font-bold rounded-full hover:bg-indigo-700 hover:scale-105 transition-all shadow-xl hover:shadow-indigo-300 flex items-center justify-center text-lg"
           >
-            {isLoggedIn ? "Go to Dashboard" : "Start Planning Free"}
+            {isLoggedIn ? "Plan a New Trip" : "Start Planning Free"}
             <Plane className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
-          {!isLoggedIn && (
+          {isLoggedIn ? (
+            <Link
+              href="/dashboard"
+              className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-bold rounded-full hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all shadow-sm flex items-center justify-center text-lg"
+            >
+              Go to Dashboard
+            </Link>
+          ) : (
             <Link
               href="/login"
               className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-bold rounded-full hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all shadow-sm flex items-center justify-center text-lg"
